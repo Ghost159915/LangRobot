@@ -192,13 +192,13 @@ This closes the loop and enables automatic recovery.
 
 | Component | Technology | Why |
 |-----------|-----------|-----|
-| Robot middleware | **ROS2 Humble** | Industry standard. Every major robotics company uses it. |
-| Physics simulation | **Gazebo Ignition** | Standard simulator paired with ROS2. |
+| Robot middleware | **ROS2 Jazzy** | Current LTS (May 2024). Targets Ubuntu 24.04 natively — the OS we're running. Jazzy is where the industry is actively moving; more relevant on a CV than pinning to Humble. |
+| Physics simulation | **Gazebo Harmonic** | The Gazebo release paired with ROS2 Jazzy. |
 | Motion planning | **MoveIt2** | Standard for arm manipulation planning. |
 | Language model | **Ollama + Llama 3.2** | Local, no API key, no cost. Same stack as InspectAI. |
 | LLM framework | **LangChain** | Structured output parsing, prompt management. |
 | Object detection | **YOLOv8** | Reused from InspectAI — same architecture, different weights. |
-| Language | **Python 3.11** | Primary ROS2 language for research-grade nodes. |
+| Language | **Python 3.12** | Default Python on Ubuntu 24.04. Fully supported by ROS2 Jazzy. |
 | Visualisation | **RViz2** | Standard ROS2 visualisation tool. |
 
 ---
@@ -290,12 +290,40 @@ Depth beats breadth. One perfectly working, well-documented demo is more impress
 
 ---
 
+## Development Environment
+
+**Hardware:**
+- **Mac M4** — primary coding machine. All code written here.
+- **Linux PC (AMD RX 7700 XT, Ubuntu 24.04)** — simulation and execution machine. ROS2, Gazebo, Ollama all run natively here.
+
+**Workflow:** Git-based. Code is committed from the Mac and pulled on the Linux PC to run. No live sync — commit discipline is the contract between machines.
+
+**Why native over Docker:** Ubuntu 24.04 ships ROS2 Jazzy natively. Running it inside a container to get Humble would add complexity with no benefit. Native install means full GPU access (ROCm for AMD), real display support for Gazebo GUI, and no container networking overhead.
+
+---
+
+## Design Decision Log
+
+All significant design or technology decisions are recorded here with reasoning. Every change to architecture or stack must be discussed (including sub-agent evaluation of alternatives) before being committed.
+
+| Date | Decision | Reason | Alternatives Considered |
+|------|----------|--------|------------------------|
+| 2026-04-10 | ROS2 Jazzy instead of Humble | Ubuntu 24.04 native target; Jazzy is current LTS; more CV-relevant | Humble via Docker (rejected: unnecessary complexity) |
+| 2026-04-10 | Gazebo Harmonic instead of Ignition | Paired release for Jazzy | Ignition (rejected: targets older ROS2) |
+| 2026-04-10 | Git-based Mac→Linux workflow | Clean separation of coding and execution environments | VS Code Remote SSH, Docker on Mac (both rejected: more overhead) |
+| 2026-04-10 | Python 3.12 instead of 3.11 | Default on Ubuntu 24.04; Jazzy supports it | 3.11 (rejected: would need manual install) |
+| 2026-04-10 | Franka Panda (FR3) as primary robot | 7-DOF, used in research labs at target companies (Figure AI, 1X, Agility); academic prestige | UR5 (considered: better for industrial companies, but less relevant to humanoid/research target) |
+| 2026-04-10 | Robot abstraction layer in architecture | Future swap to different arms (UR5, xArm, custom) without rewriting nodes — config/URDF change only | Hardcoded Franka (rejected: no extensibility) |
+| 2026-04-10 | ROCm GPU acceleration from day one | AMD RX 7700 XT (gfx1100) is ROCm 6.x supported; accelerates both Ollama LLM inference and YOLOv8 detection | CPU-only (rejected: wasted hardware, slower iteration) |
+
+---
+
 ## Prerequisites Before Starting
 
-- InspectAI fully trained and deployed (learn YOLOv8 deeply first)
-- ROS2 Humble installed on Ubuntu (your Linux PC is ready)
+- ROS2 Jazzy installed on Ubuntu 24.04 Linux PC
+- Gazebo Harmonic installed
 - Basic familiarity with ROS2 concepts (nodes, topics, services, launch files)
-- Gazebo Ignition installed
+- Ollama installed on Linux PC with Llama 3.2 pulled
 
 ---
 
