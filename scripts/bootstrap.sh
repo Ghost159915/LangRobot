@@ -25,7 +25,8 @@ sudo apt-get install -y \
     apt-transport-https \
     gnupg \
     lsb-release \
-    python3-pip
+    python3-pip \
+    "linux-headers-$(uname -r)"
 
 # ── Step 2: ROS2 Jazzy ───────────────────────────────────────────
 echo ""
@@ -89,6 +90,7 @@ else
     fi
     cd "$FRANKA_WS"
     source /opt/ros/jazzy/setup.bash
+    rosdep install --from-paths src --ignore-src -r -y
     colcon build --symlink-install
     grep -qxF "source $FRANKA_WS/install/setup.bash" ~/.bashrc \
         || echo "source $FRANKA_WS/install/setup.bash" >> ~/.bashrc
@@ -104,7 +106,7 @@ if ! command -v rocminfo &>/dev/null 2>&1; then
     wget -q "$ROCM_URL" -O "/tmp/$ROCM_DEB"
     sudo apt-get install -y "/tmp/$ROCM_DEB"
     sudo amdgpu-install --usecase=rocm --no-dkms -y
-    sudo usermod -a -G render,video "$USER"
+    sudo usermod -a -G render,video "${USER:-$(whoami)}"
     rm -f "/tmp/$ROCM_DEB"
     echo ""
     echo "  ⚠  ROCm installed. You MUST log out and back in (or reboot)"
@@ -121,12 +123,13 @@ if ! command -v ollama &>/dev/null 2>&1; then
     curl -fsSL https://ollama.com/install.sh | sh
 fi
 # Pull model — Ollama auto-detects ROCm for AMD GPU inference
-ollama pull llama3.2
+ollama list | grep -q llama3.2 || ollama pull llama3.2
 
 # ── Step 7: Python deps ───────────────────────────────────────────
 echo ""
 echo "Step 7/9: Python dependencies"
-pip install -r "$REPO_ROOT/requirements.txt"
+# --break-system-packages required on Ubuntu 24.04 (PEP 668 externally-managed-environment)
+pip install --break-system-packages -r "$REPO_ROOT/requirements.txt"
 
 # ── Step 8: rosdep + colcon build ────────────────────────────────
 echo ""
@@ -147,14 +150,18 @@ echo ""
 echo "Step 9/9: Smoke tests"
 source "$REPO_ROOT/install/setup.bash"
 
+SMOKE_FAILED=0
+
 echo -n "  ROS2 Jazzy:   "
-ros2 --version && echo "OK" || echo "FAIL"
+ros2 --version &>/dev/null && echo "OK" || { echo "FAIL"; SMOKE_FAILED=1; }
 
 echo -n "  Gazebo:       "
-gz sim --version 2>&1 | head -1 || echo "FAIL"
+gz sim --version &>/dev/null && echo "OK" || { echo "FAIL"; SMOKE_FAILED=1; }
 
 echo -n "  Ollama:       "
-ollama list | grep -q llama3.2 && echo "llama3.2 present — OK" || echo "FAIL (run: ollama pull llama3.2)"
+ollama list 2>/dev/null | grep -q llama3.2 \
+    && echo "llama3.2 present — OK" \
+    || { echo "FAIL (run: ollama pull llama3.2)"; SMOKE_FAILED=1; }
 
 echo -n "  ROCm GPU:     "
 if command -v rocminfo &>/dev/null 2>&1; then
@@ -163,11 +170,16 @@ if command -v rocminfo &>/dev/null 2>&1; then
         || echo "ROCm installed but GPU not yet visible — log out and back in"
 else
     echo "FAIL — rocminfo not found"
+    SMOKE_FAILED=1
 fi
 
 echo ""
 echo "============================================================"
-echo " Bootstrap complete."
+if [ "$SMOKE_FAILED" -eq 0 ]; then
+    echo " Bootstrap complete. All smoke tests passed."
+else
+    echo " Bootstrap complete with warnings — check FAIL lines above."
+fi
 echo ""
 echo " Next steps:"
 echo "   1. Log out and back in to activate ROCm GPU access"
@@ -176,3 +188,5 @@ echo "        source ~/.bashrc"
 echo "        cd $REPO_ROOT"
 echo "        ros2 launch langrobot langrobot.launch.py"
 echo "============================================================"
+
+exit "$SMOKE_FAILED"
