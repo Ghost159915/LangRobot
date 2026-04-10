@@ -33,7 +33,7 @@ class ControllerNode(Node):
 
     def _trajectory_callback(self, msg: JointTrajectory) -> None:
         if not msg.points:
-            self.get_logger().warn('Received empty JointTrajectory — ignoring')
+            self.get_logger().warning('Received empty JointTrajectory — ignoring')
             return
 
         # Forward the final point of the trajectory as the target position
