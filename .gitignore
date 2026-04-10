@@ -1,1 +1,18 @@
+# ROS2 colcon build artifacts
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+*.pt
+
+# Project-local
+.superpowers/
+models/
+.env
+
 .claude/
