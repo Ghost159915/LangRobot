@@ -8,11 +8,14 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .pytest_cache/
-*.pt
 
 # Project-local
 .superpowers/
 models/
 .env
+.DS_Store
+*.bag
+*.db3
+*.pt
 
 .claude/
