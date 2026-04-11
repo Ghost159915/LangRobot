@@ -11,11 +11,14 @@ How to verify Phase 2 (scene setup: table, blocks, camera) on the Linux PC.
 ```bash
 cd ~/Desktop/Projects/LangRobot
 git pull origin main
+rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-If `colcon build` fails with a franka error, run `bash fix_franka.sh` first.
+The `rosdep install` step installs any missing ROS packages automatically — run it every time after a `git pull` to avoid manual apt installs.
+
+If `colcon build` fails with a franka error, run `bash fix_franka.sh` first, then repeat `colcon build --symlink-install`.
 
 ---
 
