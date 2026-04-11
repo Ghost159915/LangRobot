@@ -118,6 +118,14 @@ def generate_launch_description():
         output='screen',
     )
 
+    # perception_node: no use_sim_time — processes camera frames in real time.
+    perception_node = Node(
+        package='langrobot',
+        executable='perception_node',
+        name='perception_node',
+        output='screen',
+    )
+
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         robot_state_publisher,
@@ -128,4 +136,5 @@ def generate_launch_description():
         controller_node,
         rviz_node,
         lang_node,
+        perception_node,
     ])
