@@ -26,6 +26,7 @@ sudo apt-get install -y \
     gnupg \
     lsb-release \
     python3-pip \
+    python-is-python3 \
     "linux-headers-$(uname -r)"
 
 # ── Step 2: ROS2 Jazzy ───────────────────────────────────────────
@@ -76,25 +77,26 @@ else
 fi
 
 # ── Step 4: Franka description ────────────────────────────────────
+# ros-jazzy-franka-description is NOT in the Jazzy apt repos.
+# The upstream repo now uses FR3 naming instead of "panda".
+# Clone into src/ so colcon builds it alongside langrobot.
 echo ""
-echo "Step 4/9: Franka ROS2 packages"
-if apt-cache show ros-jazzy-franka-description &>/dev/null 2>&1; then
-    sudo apt-get install -y ros-jazzy-franka-description
+echo "Step 4/9: Franka description (source build into src/)"
+cd "$REPO_ROOT"
+if [ ! -d "$REPO_ROOT/src/franka_description" ]; then
+    git clone https://github.com/frankaemika/franka_description.git \
+        -b main "$REPO_ROOT/src/franka_description"
+    echo "  Cloned franka_description"
 else
-    echo "  ros-jazzy-franka-description not in apt — building from source"
-    FRANKA_WS="$HOME/franka_ws"
-    mkdir -p "$FRANKA_WS/src"
-    if [ ! -d "$FRANKA_WS/src/franka_description" ]; then
-        git clone https://github.com/frankaemika/franka_description.git \
-            -b main "$FRANKA_WS/src/franka_description"
-    fi
-    cd "$FRANKA_WS"
-    source /opt/ros/jazzy/setup.bash
-    rosdep install --from-paths src --ignore-src -r -y
-    colcon build --symlink-install
-    grep -qxF "source $FRANKA_WS/install/setup.bash" ~/.bashrc \
-        || echo "source $FRANKA_WS/install/setup.bash" >> ~/.bashrc
-    cd "$REPO_ROOT"
+    echo "  franka_description already present — skipping clone"
+fi
+
+# Create panda compatibility symlinks (fr3.urdf.xacro → panda.urdf.xacro)
+# so the launch file can reference robots/panda/panda.urdf.xacro
+if [ ! -f "$REPO_ROOT/src/franka_description/robots/panda/panda.urdf.xacro" ]; then
+    bash "$REPO_ROOT/fix_franka.sh"
+else
+    echo "  Panda compatibility symlinks already exist — skipping"
 fi
 
 # ── Step 5: ROCm 6.x (AMD RX 7700 XT) ───────────────────────────
@@ -111,19 +113,23 @@ if ! command -v rocminfo &>/dev/null 2>&1; then
     echo ""
     echo "  ⚠  ROCm installed. You MUST log out and back in (or reboot)"
     echo "     before GPU acceleration is active. Run 'rocminfo' after"
-    echo "     relogin to confirm gfx1100 (RX 7700 XT) is detected."
+    echo "     relogin to confirm gfx1101 (RX 7700 XT) is detected."
 else
     echo "  ROCm already installed — skipping"
 fi
+# RX 7700 XT reports as gfx1101. Set override so ROCm compute libraries
+# recognise the GPU even if gfx1101 isn't in their explicit target list.
+grep -qF "HSA_OVERRIDE_GFX_VERSION" ~/.bashrc \
+    || echo 'export HSA_OVERRIDE_GFX_VERSION=11.0.1' >> ~/.bashrc
 
-# ── Step 6: Ollama + Llama 3.2 ───────────────────────────────────
+# ── Step 6: Ollama + Gemma 4 ─────────────────────────────────────
 echo ""
-echo "Step 6/9: Ollama + Llama 3.2"
+echo "Step 6/9: Ollama + Gemma 4"
 if ! command -v ollama &>/dev/null 2>&1; then
     curl -fsSL https://ollama.com/install.sh | sh
 fi
-# Pull model — Ollama auto-detects ROCm for AMD GPU inference
-ollama list | grep -q llama3.2 || ollama pull llama3.2
+# Pull model — Ollama auto-detects ROCm for AMD GPU inference (gfx1101, RX 7700 XT)
+ollama list | grep -q "^gemma4" || ollama pull gemma4
 
 # ── Step 7: Python deps ───────────────────────────────────────────
 echo ""
@@ -144,6 +150,9 @@ rosdep install --from-paths src --ignore-src -r -y
 colcon build --symlink-install
 grep -qxF "source $REPO_ROOT/install/setup.bash" ~/.bashrc \
     || echo "source $REPO_ROOT/install/setup.bash" >> ~/.bashrc
+# GZ_SIM_RESOURCE_PATH lets Gazebo find mesh files in the colcon install tree
+grep -qF "GZ_SIM_RESOURCE_PATH" ~/.bashrc \
+    || echo "export GZ_SIM_RESOURCE_PATH=$REPO_ROOT/install" >> ~/.bashrc
 
 # ── Step 9: Smoke tests ───────────────────────────────────────────
 echo ""
@@ -153,20 +162,21 @@ source "$REPO_ROOT/install/setup.bash"
 SMOKE_FAILED=0
 
 echo -n "  ROS2 Jazzy:   "
-ros2 --version &>/dev/null && echo "OK" || { echo "FAIL"; SMOKE_FAILED=1; }
+ros2 doctor &>/dev/null && echo "OK" || { echo "FAIL"; SMOKE_FAILED=1; }
 
 echo -n "  Gazebo:       "
 gz sim --version &>/dev/null && echo "OK" || { echo "FAIL"; SMOKE_FAILED=1; }
 
 echo -n "  Ollama:       "
-ollama list 2>/dev/null | grep -q llama3.2 \
-    && echo "llama3.2 present — OK" \
-    || { echo "FAIL (run: ollama pull llama3.2)"; SMOKE_FAILED=1; }
+ollama list 2>/dev/null | grep -q "^gemma4" \
+    && echo "gemma4 present — OK" \
+    || { echo "FAIL (run: ollama pull gemma4)"; SMOKE_FAILED=1; }
 
 echo -n "  ROCm GPU:     "
 if command -v rocminfo &>/dev/null 2>&1; then
-    rocminfo 2>/dev/null | grep -q "gfx1100" \
-        && echo "gfx1100 (RX 7700 XT) detected — OK" \
+    # RX 7700 XT reports as gfx1101 (RDNA3 smaller variant)
+    rocminfo 2>/dev/null | grep -qE "gfx110[01]" \
+        && echo "gfx1101 (RX 7700 XT) detected — OK" \
         || echo "ROCm installed but GPU not yet visible — log out and back in"
 else
     echo "FAIL — rocminfo not found"
