@@ -19,9 +19,11 @@ def test_table_top_height():
 
 
 def test_table_within_arm_reach():
-    # Nearest table edge to arm base must be strictly closer than max reach.
-    nearest_x = TABLE_POSE_XYZ[0] - TABLE_SIZE_XYZ[0] / 2
-    assert nearest_x < ARM_REACH_M
+    # Every block must be within arm reach of the base at (0, 0, 0).
+    # This is the meaningful constraint — the arm must grasp each block.
+    for name, (x, y, z) in BLOCK_POSITIONS.items():
+        dist = math.sqrt(x * x + y * y + z * z)
+        assert dist < ARM_REACH_M, f"{name} block at dist={dist:.3f}m exceeds reach {ARM_REACH_M}m"
 
 
 def test_all_blocks_on_table_surface():
@@ -54,10 +56,12 @@ def test_camera_above_everything():
 
 
 def test_blocks_no_overlap():
+    # Use Chebyshev distance (max of axis distances) for axis-aligned cube overlap.
+    # Two BLOCK_SIZE cubes don't overlap when max(|dx|, |dy|) >= BLOCK_SIZE.
     names = list(BLOCK_POSITIONS.keys())
     for i, a in enumerate(names):
         for b in names[i + 1 :]:
             ax, ay, _ = BLOCK_POSITIONS[a]
             bx, by, _ = BLOCK_POSITIONS[b]
-            dist = math.sqrt((ax - bx) ** 2 + (ay - by) ** 2)
-            assert dist >= BLOCK_SIZE, f"{a} and {b} blocks overlap (dist={dist:.3f})"
+            chebyshev = max(abs(ax - bx), abs(ay - by))
+            assert chebyshev >= BLOCK_SIZE, f"{a} and {b} blocks overlap (chebyshev={chebyshev:.3f})"
