@@ -19,3 +19,8 @@ models/
 *.pt
 
 .claude/
+src/franka_description/
+src/franka_ros2/
+build/
+install/
+log/

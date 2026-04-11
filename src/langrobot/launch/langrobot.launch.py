@@ -4,6 +4,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -24,19 +25,20 @@ def generate_launch_description():
         'xacro ',
         os.path.join(franka_pkg, 'robots', 'panda', 'panda.urdf.xacro'),
         ' hand:=true',
-        ' gazebo:=ignition',
+        ' gazebo:=true',
     ])
 
     robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        parameters=[{
-            'robot_description': robot_description,
-            'use_sim_time': use_sim_time,
-        }],
-        output='screen',
-    )
+            package='robot_state_publisher',
+            executable='robot_state_publisher',
+            name='robot_state_publisher',
+            parameters=[{
+                # Explicitly cast the Xacro output to a string to prevent Jazzy's YAML parser from crashing
+                'robot_description': ParameterValue(robot_description, value_type=str),
+                'use_sim_time': use_sim_time,
+            }],
+            output='screen',
+        )
 
     gazebo = ExecuteProcess(
         cmd=[
