@@ -197,7 +197,7 @@
             </image>
             <clip>
               <near>0.1</near>
-              <far>10.0</far>
+              <far>3.0</far>  <!-- camera is 1.5 m overhead; 3 m gives adequate margin with better depth precision -->
             </clip>
           </camera>
         </sensor>
