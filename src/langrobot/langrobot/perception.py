@@ -1,7 +1,7 @@
 """
 perception.py — pure Python block detection via HSV colour segmentation.
 
-No ROS2 imports. Public interface: detect_blocks(rgb, depth, camera_info) -> list[dict].
+No ROS2 imports. Public interface: detect_blocks(bgr, depth, camera_info) -> list[dict].
 All failures return visible=False entries — never raises.
 """
 import logging
@@ -22,27 +22,25 @@ MIN_CONTOUR_AREA = 100
 # Fixed colour order: output list always has entries in this order
 COLOURS = ["red", "blue", "green", "yellow", "white"]
 
-# HSV ranges per colour. Each entry is (range1, range2).
-# range2 is only used for red (hue wraps around 0°).
+# HSV ranges per colour. Each colour has one or more (lo, hi) ranges that are
+# OR'd together. Red needs two ranges because its hue wraps around 0°.
 # Format: (np.array([H_lo, S_lo, V_lo]), np.array([H_hi, S_hi, V_hi]))
 _HSV_RANGES = {
-    "red":    ((np.array([0,   100, 100]), np.array([10,  255, 255])),
-               (np.array([170, 100, 100]), np.array([180, 255, 255]))),
-    "blue":   ((np.array([100, 100, 100]), np.array([130, 255, 255])), None),
-    "green":  ((np.array([40,  100, 100]), np.array([80,  255, 255])), None),
-    "yellow": ((np.array([20,  100, 100]), np.array([35,  255, 255])), None),
-    "white":  ((np.array([0,   0,   200]), np.array([180, 30,  255])), None),
+    "red":    [(np.array([0,   100, 100]), np.array([10,  255, 255])),
+               (np.array([170, 100, 100]), np.array([180, 255, 255]))],
+    "blue":   [(np.array([100, 100, 100]), np.array([130, 255, 255]))],
+    "green":  [(np.array([40,  100, 100]), np.array([80,  255, 255]))],
+    "yellow": [(np.array([20,  100, 100]), np.array([35,  255, 255]))],
+    "white":  [(np.array([0,   0,   200]), np.array([180, 30,  255]))],
 }
 
 
 def _get_mask(hsv: np.ndarray, colour: str) -> np.ndarray:
     """Return binary mask for `colour` in the HSV image."""
-    range1, range2 = _HSV_RANGES[colour]
-    lo1, hi1 = range1
-    mask = cv2.inRange(hsv, lo1, hi1)
-    if range2 is not None:
-        lo2, hi2 = range2
-        mask = cv2.bitwise_or(mask, cv2.inRange(hsv, lo2, hi2))
+    ranges = _HSV_RANGES[colour]
+    mask = cv2.inRange(hsv, ranges[0][0], ranges[0][1])
+    for lo, hi in ranges[1:]:
+        mask = cv2.bitwise_or(mask, cv2.inRange(hsv, lo, hi))
     return mask
 
 
