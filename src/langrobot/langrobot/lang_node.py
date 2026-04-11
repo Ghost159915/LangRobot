@@ -36,7 +36,11 @@ class LangNode(Node):
             return
 
         self.get_logger().info(f'Received command: {text!r}')
-        result = parse_command(text)
+        try:
+            result = parse_command(text)
+        except Exception as exc:
+            self.get_logger().error(f'parse_command raised: {exc}')
+            result = {'action': 'error', 'reason': str(exc)}
 
         if result.get('action') == 'error':
             self.get_logger().error(f'LLM error: {result.get("reason")}')
