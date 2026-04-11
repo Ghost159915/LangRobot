@@ -61,7 +61,10 @@ def _parse(raw: str) -> dict | None:
     text = raw.strip()
     if text.startswith("```"):
         lines = text.splitlines()
-        text = "\n".join(lines[1:-1]) if len(lines) > 2 else text
+        inner = lines[1:]
+        if inner and inner[-1].strip().startswith("```"):
+            inner = inner[:-1]
+        text = "\n".join(inner)
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
@@ -81,14 +84,14 @@ def parse_command(text: str) -> dict:
     Returns {"action": "error", "reason": "..."} if both attempts fail.
     Never raises.
     """
-    prompt = _PROMPT_TEMPLATE.format(user_text=text)
+    base_prompt = _PROMPT_TEMPLATE.format(user_text=text)
 
     for attempt in range(2):
-        if attempt == 1:
-            prompt = _RETRY_PREFIX + prompt
+        prompt = (_RETRY_PREFIX + base_prompt) if attempt == 1 else base_prompt
         try:
             raw = _call_ollama(prompt)
         except Exception as exc:
+            # Network errors return immediately — no point retrying with a stricter prompt.
             logger.error("Ollama request failed (attempt %d): %s", attempt + 1, exc)
             return {"action": "error", "reason": f"Ollama request failed: {exc}"}
 

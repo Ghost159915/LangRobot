@@ -55,6 +55,23 @@ def test_ollama_unavailable():
     assert "reason" in result
 
 
+def test_ollama_unavailable_does_not_retry():
+    """Network errors short-circuit immediately — requests.post is called exactly once."""
+    import requests as req
+    with patch("langrobot.llm_client.requests.post", side_effect=req.ConnectionError("refused")) as mock_post:
+        result = parse_command("move red to blue")
+    assert result["action"] == "error"
+    mock_post.assert_called_once()
+
+
+def test_markdown_fenced_response():
+    """LLM responses wrapped in ```json fences are correctly parsed."""
+    fenced = '```json\n{"action": "pick_and_place", "object": "red", "target": "blue"}\n```'
+    with patch("langrobot.llm_client.requests.post", return_value=_mock_response(fenced)):
+        result = parse_command("move red to blue")
+    assert result == {"action": "pick_and_place", "object": "red", "target": "blue"}
+
+
 def test_same_object_and_target_is_invalid():
     bad = '{"action": "pick_and_place", "object": "red", "target": "red"}'
     good_json = '{"action": "pick_and_place", "object": "red", "target": "blue"}'
