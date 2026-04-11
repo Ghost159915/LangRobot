@@ -110,6 +110,14 @@ def generate_launch_description():
     delayed_spawn = TimerAction(period=3.0, actions=[spawn_robot])
     delayed_camera_bridge = TimerAction(period=3.0, actions=[camera_bridge])
 
+    # lang_node: no use_sim_time — talks to Ollama via wall-clock HTTP, not sim time.
+    lang_node = Node(
+        package='langrobot',
+        executable='lang_node',
+        name='lang_node',
+        output='screen',
+    )
+
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         robot_state_publisher,
@@ -119,4 +127,5 @@ def generate_launch_description():
         delayed_spawn,
         controller_node,
         rviz_node,
+        lang_node,
     ])
