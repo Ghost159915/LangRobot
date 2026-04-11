@@ -9,6 +9,7 @@ import json
 import rclpy
 from cv_bridge import CvBridge
 from rclpy.node import Node
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import String
 
@@ -22,9 +23,17 @@ class PerceptionNode(Node):
         self._latest_depth = None
         self._camera_info = None
 
-        self.create_subscription(Image, '/camera/rgb_image', self._on_rgb, 10)
-        self.create_subscription(Image, '/camera/depth_image', self._on_depth, 10)
-        self.create_subscription(CameraInfo, '/camera/camera_info', self._on_camera_info, 10)
+        # Best Effort QoS matches ros_gz_bridge camera topic publisher policy.
+        # Depth=1: only the latest frame matters — no point buffering old images.
+        sensor_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=1,
+        )
+
+        self.create_subscription(Image, '/camera/rgb_image', self._on_rgb, sensor_qos)
+        self.create_subscription(Image, '/camera/depth_image', self._on_depth, sensor_qos)
+        self.create_subscription(CameraInfo, '/camera/camera_info', self._on_camera_info, sensor_qos)
         self._pub = self.create_publisher(String, '/object_poses', 10)
 
         self.get_logger().info('perception_node ready — waiting for camera frames')
@@ -65,7 +74,7 @@ class PerceptionNode(Node):
 
         try:
             result = detect_blocks(bgr, self._latest_depth, self._camera_info)
-        except Exception as exc:
+        except Exception as exc:  # defensive: perception.py guarantees no-raise, but guard anyway
             self.get_logger().error(f'detect_blocks raised: {exc}')
             return
 
