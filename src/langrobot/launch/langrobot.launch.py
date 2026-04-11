@@ -105,15 +105,17 @@ def generate_launch_description():
         output='screen',
     )
 
-    # Delay spawn 3 seconds to give Gazebo time to initialise
+    # Delay spawn and camera bridge 3 seconds to give Gazebo time to initialise.
+    # Without the delay the bridge logs noisy "No publisher" errors until topics appear.
     delayed_spawn = TimerAction(period=3.0, actions=[spawn_robot])
+    delayed_camera_bridge = TimerAction(period=3.0, actions=[camera_bridge])
 
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         robot_state_publisher,
         gazebo,
         clock_bridge,
-        camera_bridge,
+        delayed_camera_bridge,
         delayed_spawn,
         controller_node,
         rviz_node,
