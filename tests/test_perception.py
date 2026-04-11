@@ -62,9 +62,9 @@ def test_depth_to_3d():
     result = detect_blocks(rgb, depth, _camera_info())
     red = next(b for b in result if b["colour"] == "red")
     assert red["visible"] is True
-    assert abs(red["x"] - 0.5) < 0.05   # within 5 cm
-    assert abs(red["y"] - 0.0) < 0.05
-    assert abs(red["z"] - 0.5) < 0.05
+    assert abs(red["x"] - 0.5) < 0.003   # within 3 mm (integer pixel centroid rounding at fx=554)
+    assert abs(red["y"] - 0.0) < 0.003
+    assert abs(red["z"] - 0.5) < 0.001   # depth is exact (uniform depth image)
 
 
 def test_all_five_colours():
@@ -75,7 +75,7 @@ def test_all_five_colours():
     img[0:96, 0:128]   = (0,   0,   200)   # red
     img[0:96, 128:256] = (200, 0,   0  )   # blue
     img[0:96, 256:384] = (0,   200, 0  )   # green
-    img[0:96, 384:512] = (0,   200, 200)   # yellow
+    img[0:96, 384:512] = (0,   255, 255)   # yellow (BGR: B=0, G=255, R=255)
     img[0:96, 512:640] = (220, 220, 220)   # white
     depth = _solid_depth(1.0)
 
@@ -100,3 +100,32 @@ def test_missing_block_returns_null():
         assert block["x"] is None
         assert block["y"] is None
         assert block["z"] is None
+
+
+def test_zero_depth_returns_not_visible():
+    """Block detected in RGB but depth=0 → visible=False (invalid depth)."""
+    rgb = _solid_rgb((0, 0, 200))        # red
+    depth = _solid_depth(0.0)            # all-zero depth — invalid
+    result = detect_blocks(rgb, depth, _camera_info())
+    red = next(b for b in result if b["colour"] == "red")
+    assert red["visible"] is False
+    assert red["x"] is None
+
+
+def test_nan_depth_returns_not_visible():
+    """Block detected in RGB but depth=NaN → visible=False (invalid depth)."""
+    rgb = _solid_rgb((0, 0, 200))        # red
+    depth = _solid_depth(float("nan"))
+    result = detect_blocks(rgb, depth, _camera_info())
+    red = next(b for b in result if b["colour"] == "red")
+    assert red["visible"] is False
+    assert red["x"] is None
+
+
+def test_malformed_input_returns_all_not_visible():
+    """Wrong-shaped input → detect_blocks never raises, returns 5 visible=False."""
+    bad_input = np.zeros((10,), dtype=np.uint8)   # 1D — not a valid image
+    depth = _solid_depth(1.0)
+    result = detect_blocks(bad_input, depth, _camera_info())
+    assert len(result) == 5
+    assert all(b["visible"] is False for b in result)

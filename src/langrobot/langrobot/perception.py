@@ -38,14 +38,20 @@ _HSV_RANGES = {
 def _get_mask(hsv: np.ndarray, colour: str) -> np.ndarray:
     """Return binary mask for `colour` in the HSV image."""
     range1, range2 = _HSV_RANGES[colour]
-    mask = cv2.inRange(hsv, range1[0], range1[1])
+    lo1, hi1 = range1
+    mask = cv2.inRange(hsv, lo1, hi1)
     if range2 is not None:
-        mask = cv2.bitwise_or(mask, cv2.inRange(hsv, range2[0], range2[1]))
+        lo2, hi2 = range2
+        mask = cv2.bitwise_or(mask, cv2.inRange(hsv, lo2, hi2))
     return mask
 
 
 def _find_centroid(mask: np.ndarray):
-    """Return (u, v) centroid of the largest contour, or None if not found."""
+    """Return (u, v) centroid of the largest contour by area, or None if not found.
+
+    Only one detection per colour is returned. If a colour appears as multiple
+    disconnected regions (e.g. occlusion), only the largest region is used.
+    """
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None
@@ -84,7 +90,7 @@ def _project_to_world(u: int, v: int, depth: float, camera_info: dict):
 
 
 def detect_blocks(
-    rgb: np.ndarray,
+    bgr: np.ndarray,
     depth: np.ndarray,
     camera_info: dict,
 ) -> list:
@@ -92,7 +98,7 @@ def detect_blocks(
     Detect all 5 coloured blocks in the image.
 
     Args:
-        rgb:         HxWx3 uint8 array in BGR order (OpenCV convention).
+        bgr:         HxWx3 uint8 array in BGR order (OpenCV convention).
         depth:       HxW float32 array, values in metres.
         camera_info: dict with keys fx, fy, cx, cy (pinhole intrinsics).
 
@@ -104,7 +110,7 @@ def detect_blocks(
         Never raises — failures produce visible=False entries.
     """
     try:
-        hsv = cv2.cvtColor(rgb, cv2.COLOR_BGR2HSV)
+        hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     except Exception as exc:
         logger.error("HSV conversion failed: %s", exc)
         return [
@@ -124,7 +130,7 @@ def detect_blocks(
 
             u, v = centroid
             d = float(depth[v, u])
-            if d == 0.0 or not np.isfinite(d):
+            if d <= 0.0 or not np.isfinite(d):
                 results.append(entry)
                 continue
 
