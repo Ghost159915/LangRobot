@@ -217,3 +217,6 @@ All significant decisions recorded here. Every architectural change must be sub-
 | 2026-04-10 | Robot abstraction layer | Swap arms without rewriting nodes | Hardcoded Franka (rejected: no extensibility) |
 | 2026-04-10 | ROCm GPU from day one | RX 7700 XT (gfx1100) is ROCm 6.x supported; faster LLM + vision | CPU-only (rejected: wasted hardware) |
 | 2026-04-10 | Standard colcon workspace (Option A) | Industry-standard layout; native performance; no Docker GPU headaches | Docker Compose hybrid, multi-package workspace (both rejected: premature complexity) |
+| 2026-04-11 | Gemma 4 over Llama 3.2 (Phase 1 finding) | Faster GPU-accelerated inference on RX 7700 XT via ROCm; user preference confirmed during Phase 1 testing | Llama 3.2 (was original spec; swapped after Phase 1) |
+| 2026-04-11 | Direct Ollama HTTP over LangChain for lang_node | Simpler, fewer dependencies, easier to debug for Phase 3 scope | LangChain deferred to Phase 6+ when chains/memory/tool-use are needed |
+| 2026-04-11 | lang_node input via /task_input topic only (no stdin) | Clean ROS2 architecture; stdin unreliable when launched via ros2 launch | Stdin via background thread deferred; add when convenient |
