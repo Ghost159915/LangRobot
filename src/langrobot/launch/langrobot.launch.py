@@ -15,8 +15,8 @@ def generate_launch_description():
     except Exception:
         raise RuntimeError(
             'franka_description package not found.\n'
-            'Run: sudo apt install ros-jazzy-franka-description\n'
-            'Or build from source — see scripts/bootstrap.sh Step 4.'
+            'Run: bash fix_franka.sh  then  colcon build --symlink-install\n'
+            'See scripts/bootstrap.sh Step 4.'
         )
 
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
@@ -29,16 +29,16 @@ def generate_launch_description():
     ])
 
     robot_state_publisher = Node(
-            package='robot_state_publisher',
-            executable='robot_state_publisher',
-            name='robot_state_publisher',
-            parameters=[{
-                # Explicitly cast the Xacro output to a string to prevent Jazzy's YAML parser from crashing
-                'robot_description': ParameterValue(robot_description, value_type=str),
-                'use_sim_time': use_sim_time,
-            }],
-            output='screen',
-        )
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        name='robot_state_publisher',
+        parameters=[{
+            # Explicitly cast Xacro output to string — prevents Jazzy YAML parser crash
+            'robot_description': ParameterValue(robot_description, value_type=str),
+            'use_sim_time': use_sim_time,
+        }],
+        output='screen',
+    )
 
     gazebo = ExecuteProcess(
         cmd=[
@@ -69,10 +69,38 @@ def generate_launch_description():
         output='screen',
     )
 
+    # Bridge camera topics from Gazebo → ROS2.
+    # Gazebo rgbd_camera sensor with <topic>camera</topic> publishes:
+    #   /camera/image          (gz.msgs.Image)
+    #   /camera/depth_image    (gz.msgs.Image)
+    #   /camera/camera_info    (gz.msgs.CameraInfo)
+    # Remapping renames /camera/image → /camera/rgb_image to match the spec.
+    camera_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='camera_bridge',
+        arguments=[
+            '/camera/image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image',
+            '/camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo',
+        ],
+        remappings=[('/camera/image', '/camera/rgb_image')],
+        output='screen',
+    )
+
     controller_node = Node(
         package='langrobot',
         executable='controller_node',
         name='controller_node',
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen',
+    )
+
+    rviz_node = Node(
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        arguments=['-d', os.path.join(pkg_share, 'config', 'rviz', 'phase2.rviz')],
         parameters=[{'use_sim_time': use_sim_time}],
         output='screen',
     )
@@ -85,6 +113,8 @@ def generate_launch_description():
         robot_state_publisher,
         gazebo,
         clock_bridge,
+        camera_bridge,
         delayed_spawn,
         controller_node,
+        rviz_node,
     ])
