@@ -1,5 +1,6 @@
 import os
 import subprocess
+import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
@@ -263,10 +264,18 @@ def generate_launch_description():
             'robot_description_semantic': open(
                 os.path.join(moveit_config_dir, 'panda.srdf')
             ).read(),
-            'robot_description_kinematics': os.path.join(moveit_config_dir, 'kinematics.yaml'),
-            'robot_description_planning': os.path.join(moveit_config_dir, 'joint_limits.yaml'),
-            'ompl': os.path.join(moveit_config_dir, 'ompl_planning.yaml'),
-            'moveit_simple_controller_manager': os.path.join(moveit_config_dir, 'moveit_controllers.yaml'),
+            'robot_description_kinematics': yaml.safe_load(
+                open(os.path.join(moveit_config_dir, 'kinematics.yaml'))
+            ),
+            'robot_description_planning': yaml.safe_load(
+                open(os.path.join(moveit_config_dir, 'joint_limits.yaml'))
+            ),
+            'ompl': yaml.safe_load(
+                open(os.path.join(moveit_config_dir, 'ompl_planning.yaml'))
+            ),
+            'moveit_simple_controller_manager': yaml.safe_load(
+                open(os.path.join(moveit_config_dir, 'moveit_controllers.yaml'))
+            ),
             'use_sim_time': use_sim_time,
             'planning_scene_monitor_options': {
                 'publish_planning_scene': True,
