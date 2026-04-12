@@ -81,8 +81,9 @@ def _build_robot_description() -> str:
 
     gazebo_block = f"""
   <!-- Per-joint position controllers (Gazebo Harmonic built-in).
-       Topics: /model/{_MODEL_NAME}/joint/<joint>/0/cmd_pos (gz transport)
-       Bridged from ROS2 Float64 via joint_command_bridge. -->
+       Each plugin uses an explicit <topic> to avoid the default axis-indexed
+       /model/<model>/joint/<joint>/0/cmd_pos which is invalid in ROS2.
+       Arm joints bridged via joint_command_bridge; finger joints via finger_command_bridge. -->
   <gazebo>
 {joint_plugins}
 {finger_plugins}
