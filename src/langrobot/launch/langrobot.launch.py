@@ -45,9 +45,9 @@ def _build_robot_description() -> str:
         f"""    <plugin filename="gz-sim-joint-position-controller-system"
             name="gz::sim::systems::JointPositionController">
       <joint_name>{name}</joint_name>
-      <p_gain>200</p_gain>
+      <p_gain>500</p_gain>
       <i_gain>0</i_gain>
-      <d_gain>10</d_gain>
+      <d_gain>20</d_gain>
       <cmd_max>1000</cmd_max>
       <cmd_min>-1000</cmd_min>
     </plugin>"""

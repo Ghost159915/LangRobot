@@ -25,7 +25,8 @@ pytestmark = pytest.mark.skipif(
 from langrobot.robots.franka import FrankaRobot
 JOINT_NAMES = FrankaRobot().joint_names  # fr3_joint1 … fr3_joint7
 TOLERANCE = 0.05   # radians
-TIMEOUT = 8.0      # seconds
+TIMEOUT = 15.0     # seconds — arm needs time to physically move
+COMMAND_INTERVAL = 1.0  # re-publish command every N seconds (handles DDS discovery delay)
 
 HOME = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
 CUSTOM = [0.5, -0.5, 0.0, -2.0, 0.0, 1.3, 0.785]
@@ -56,7 +57,12 @@ class ArmTestNode(Node):
 
     def wait_for_positions(self, target: list[float]) -> tuple[bool, dict]:
         deadline = time.time() + TIMEOUT
+        last_command_at = 0.0
         while time.time() < deadline:
+            # Re-publish periodically in case first publish was lost during DDS discovery.
+            if time.time() - last_command_at >= COMMAND_INTERVAL:
+                self.command(target)
+                last_command_at = time.time()
             rclpy.spin_once(self, timeout_sec=0.1)
             if self._latest_positions is not None:
                 diffs = {
@@ -87,7 +93,6 @@ def arm_node():
 
 def test_arm_moves_to_home_position(arm_node):
     """Arm must reach Franka home position within TIMEOUT seconds."""
-    arm_node.command(HOME)
     reached, diffs = arm_node.wait_for_positions(HOME)
     diff_str = ", ".join(f"{k}: {v:.3f}rad" for k, v in diffs.items())
     assert reached, (
@@ -98,7 +103,6 @@ def test_arm_moves_to_home_position(arm_node):
 
 def test_arm_moves_to_custom_position(arm_node):
     """Arm must reach a distinct non-home pose within TIMEOUT seconds."""
-    arm_node.command(CUSTOM)
     reached, diffs = arm_node.wait_for_positions(CUSTOM)
     diff_str = ", ".join(f"{k}: {v:.3f}rad" for k, v in diffs.items())
     assert reached, (
