@@ -41,4 +41,14 @@
   <disable_collisions link1="fr3_link4" link2="fr3_link5" reason="Adjacent" />
   <disable_collisions link1="fr3_link5" link2="fr3_link6" reason="Adjacent" />
   <disable_collisions link1="fr3_link6" link2="fr3_link7" reason="Adjacent" />
+  <disable_collisions link1="fr3_link0" link2="fr3_link2" reason="Never" />
+  <disable_collisions link1="fr3_link0" link2="fr3_link4" reason="Never" />
+  <disable_collisions link1="fr3_link1" link2="fr3_link3" reason="Never" />
+  <disable_collisions link1="fr3_link2" link2="fr3_link4" reason="Never" />
+  <disable_collisions link1="fr3_link3" link2="fr3_link5" reason="Never" />
+  <disable_collisions link1="fr3_link4" link2="fr3_link6" reason="Never" />
+  <disable_collisions link1="fr3_link5" link2="fr3_link7" reason="Never" />
+  <disable_collisions link1="fr3_link6" link2="fr3_hand" reason="Never" />
+  <disable_collisions link1="fr3_link7" link2="fr3_left_finger" reason="Never" />
+  <disable_collisions link1="fr3_link7" link2="fr3_right_finger" reason="Never" />
 </robot>

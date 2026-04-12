@@ -8,7 +8,7 @@ panda_arm:
   planner_configs:
     - RRTConnectkConfigDefault
   projection_evaluator: joints(fr3_joint1,fr3_joint2)
-  longest_valid_segment_fraction: 0.005
+  longest_valid_segment_fraction: 0.01
 
 hand:
   default_planner_config: RRTConnectkConfigDefault
