@@ -49,11 +49,11 @@ def _build_robot_description() -> str:
             name="gz::sim::systems::JointPositionController">
       <joint_name>{name}</joint_name>
       <topic>/model/{_MODEL_NAME}/joint/{name}/cmd_pos</topic>
-      <p_gain>500</p_gain>
+      <p_gain>100</p_gain>
       <i_gain>0</i_gain>
       <d_gain>20</d_gain>
-      <cmd_max>1000</cmd_max>
-      <cmd_min>-1000</cmd_min>
+      <cmd_max>100</cmd_max>
+      <cmd_min>-100</cmd_min>
     </plugin>"""
         for name in _ARM_JOINTS
     )
