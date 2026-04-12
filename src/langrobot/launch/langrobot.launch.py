@@ -54,12 +54,19 @@ def _build_robot_description() -> str:
         for name in _ARM_JOINTS
     )
 
+    # JointStatePublisher publishes /world/<world>/model/<model>/joint_state
+    # (gz.msgs.Model) so the joint_state_bridge can forward it to /joint_states.
+    state_publisher_plugin = """    <plugin filename="gz-sim-joint-state-publisher-system"
+        name="gz::sim::systems::JointStatePublisher">
+    </plugin>"""
+
     gazebo_block = f"""
   <!-- Per-joint position controllers (Gazebo Harmonic built-in).
-       Topics: /model/{_MODEL_NAME}/joint/<joint>/cmd_pos (gz transport)
+       Topics: /model/{_MODEL_NAME}/joint/<joint>/0/cmd_pos (gz transport)
        Bridged from ROS2 Float64 via joint_command_bridge. -->
   <gazebo>
 {joint_plugins}
+{state_publisher_plugin}
   </gazebo>
 """
     return result.stdout.replace('</robot>', gazebo_block + '</robot>')
@@ -143,12 +150,14 @@ def generate_launch_description():
 
     # Bridge per-joint position commands: ROS2 Float64 → Gazebo Double.
     # ] direction means ROS2 → Gazebo (opposite of camera bridge above).
+    # JointPositionController in Gazebo Harmonic subscribes on the axis-indexed
+    # topic: /model/<model>/joint/<joint>/0/cmd_pos  (axis index 0).
     joint_command_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         name='joint_command_bridge',
         arguments=[
-            f'/model/{_MODEL_NAME}/joint/{name}/cmd_pos'
+            f'/model/{_MODEL_NAME}/joint/{name}/0/cmd_pos'
             '@std_msgs/msg/Float64]gz.msgs.Double'
             for name in _ARM_JOINTS
         ],
