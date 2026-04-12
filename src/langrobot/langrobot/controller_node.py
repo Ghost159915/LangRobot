@@ -21,7 +21,7 @@ class ControllerNode(Node):
 
         self._joint_commands_pub = self.create_publisher(
             Float64MultiArray,
-            '/joint_commands',
+            '/forward_position_controller/commands',
             10,
         )
 

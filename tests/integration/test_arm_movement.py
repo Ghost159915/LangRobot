@@ -22,10 +22,8 @@ pytestmark = pytest.mark.skipif(
     reason="rclpy not available — run on GhostMachine with stack launched"
 )
 
-JOINT_NAMES = [
-    'panda_joint1', 'panda_joint2', 'panda_joint3', 'panda_joint4',
-    'panda_joint5', 'panda_joint6', 'panda_joint7',
-]
+from langrobot.robots.franka import FrankaRobot
+JOINT_NAMES = FrankaRobot().joint_names  # fr3_joint1 … fr3_joint7
 TOLERANCE = 0.05   # radians
 TIMEOUT = 8.0      # seconds
 

@@ -19,10 +19,10 @@ def test_franka_has_seven_joints():
     assert len(robot.joint_names) == 7
 
 
-def test_franka_joint_names_are_panda_joints():
+def test_franka_joint_names_are_fr3_joints():
     robot = FrankaRobot()
     for name in robot.joint_names:
-        assert name.startswith('panda_joint'), f"Unexpected joint name: {name}"
+        assert name.startswith('fr3_joint'), f"Unexpected joint name: {name}"
 
 
 def test_franka_end_effector_link():
