@@ -30,6 +30,7 @@ setup(
             'lang_node = langrobot.lang_node:main',
             'perception_node = langrobot.perception_node:main',
             'gripper_node = langrobot.gripper_node:main',
+            'planner_node = langrobot.planner_node:main',
         ],
     },
 )

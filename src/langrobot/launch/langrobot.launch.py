@@ -246,6 +246,14 @@ def generate_launch_description():
         output='screen',
     )
 
+    planner_node = Node(
+        package='langrobot',
+        executable='planner_node',
+        name='planner_node',
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen',
+    )
+
     move_group = Node(
         package='moveit_ros_move_group',
         executable='move_group',
@@ -293,5 +301,6 @@ def generate_launch_description():
         lang_node,
         perception_node,
         gripper_node,
+        planner_node,
         move_group,
     ])
