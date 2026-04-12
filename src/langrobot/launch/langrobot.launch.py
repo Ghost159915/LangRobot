@@ -8,6 +8,7 @@ from launch_ros.actions import Node
 
 # Arm joint names — must match the spawned Gazebo model name.
 _ARM_JOINTS = [f'fr3_joint{i}' for i in range(1, 8)]
+_FINGER_JOINTS = ['fr3_finger_joint1', 'fr3_finger_joint2']
 _MODEL_NAME = 'panda'
 
 
@@ -58,6 +59,20 @@ def _build_robot_description() -> str:
         for name in _ARM_JOINTS
     )
 
+    finger_plugins = '\n'.join(
+        f"""    <plugin filename="gz-sim-joint-position-controller-system"
+            name="gz::sim::systems::JointPositionController">
+      <joint_name>{name}</joint_name>
+      <topic>/model/{_MODEL_NAME}/joint/{name}/cmd_pos</topic>
+      <p_gain>50</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>5</d_gain>
+      <cmd_max>50</cmd_max>
+      <cmd_min>-50</cmd_min>
+    </plugin>"""
+        for name in _FINGER_JOINTS
+    )
+
     # JointStatePublisher publishes /world/<world>/model/<model>/joint_state
     # (gz.msgs.Model) so the joint_state_bridge can forward it to /joint_states.
     state_publisher_plugin = """    <plugin filename="gz-sim-joint-state-publisher-system"
@@ -70,6 +85,7 @@ def _build_robot_description() -> str:
        Bridged from ROS2 Float64 via joint_command_bridge. -->
   <gazebo>
 {joint_plugins}
+{finger_plugins}
 {state_publisher_plugin}
   </gazebo>
 """
@@ -168,6 +184,18 @@ def generate_launch_description():
         output='screen',
     )
 
+    finger_command_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='finger_command_bridge',
+        arguments=[
+            f'/model/{_MODEL_NAME}/joint/{name}/cmd_pos'
+            '@std_msgs/msg/Float64]gz.msgs.Double'
+            for name in _FINGER_JOINTS
+        ],
+        output='screen',
+    )
+
     controller_node = Node(
         package='langrobot',
         executable='controller_node',
@@ -214,7 +242,7 @@ def generate_launch_description():
     # Joint bridges need the model to be spawned first (3 s).
     delayed_joint_bridges = TimerAction(
         period=5.0,
-        actions=[joint_state_bridge, joint_command_bridge],
+        actions=[joint_state_bridge, joint_command_bridge, finger_command_bridge],
     )
 
     return LaunchDescription([
