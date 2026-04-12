@@ -2,7 +2,7 @@
 
 > **Living document.** Updated by Claude sessions on Mac and GhostMachine after each phase or significant milestone. When starting a new Claude session, read this file first for full context.
 
-**Last updated:** 2026-04-11  
+**Last updated:** 2026-04-12  
 **Updated by:** Claude (Mac session)
 
 ---
@@ -54,8 +54,9 @@ LangRobot is a language-driven robot manipulation system. A user types a plain E
 | 1 | Bootstrap + arm control scaffold | ✅ **DONE** | Franka arm moves in Gazebo via `/joint_commands` |
 | 2 | Scene: table, blocks, camera, RViz2 | ✅ **DONE** | Camera feed with blocks visible in RViz2 |
 | 3 | `lang_node` — English → JSON | ✅ **DONE** | `/task_command` shows valid JSON for any English input |
-| 4 | `perception_node` — camera → block poses | 🔄 **IN PROGRESS** | `/object_poses` shows correct 3D positions |
-| 5 | `planner_node` — MoveIt2 planning | ⏳ Not started | Arm picks and places a block |
+| 4 | `perception_node` — camera → block poses | ✅ **DONE** | `/object_poses` shows correct 3D positions |
+| 4b | Arm movement integration tests | ✅ **DONE** | `pytest tests/integration/` passes — arm physically moves to commanded positions in Gazebo |
+| 5 | `planner_node` — MoveIt2 planning | 🔄 **IN PROGRESS** | Arm picks and places a block |
 | 6 | `feedback_node` + full integration | ⏳ Not started | Full loop: English → arm moves → "Done." |
 
 ---
@@ -64,27 +65,36 @@ LangRobot is a language-driven robot manipulation system. A user types a plain E
 
 ```
 src/langrobot/langrobot/
-├── controller_node.py     ✅ Phase 1 — trajectory execution skeleton
+├── controller_node.py     ✅ Phase 1 — trajectory execution (fire-and-forget; Phase 5 upgrades to action server)
+├── joint_relay_node.py    ✅ Phase 4b — fans out Float64MultiArray → 7 per-joint Float64 topics
 ├── lang_node.py           ✅ Phase 3 — /task_input → Ollama → /task_command
 ├── llm_client.py          ✅ Phase 3 — pure Python Ollama HTTP client
 ├── perception.py          ✅ Phase 4 — HSV detection + 3D projection (pure Python)
-├── perception_node.py     🔄 Phase 4 — IN PROGRESS
+├── perception_node.py     ✅ Phase 4 — camera topics → /object_poses
 ├── scene.py               ✅ Phase 2 — block/table geometry helpers
+├── trajectory.py          ✅ Phase 4b — JointTrajectory → flat position list
 └── robots/
     ├── base_robot.py      ✅ Phase 1 — abstract robot interface
-    └── franka.py          ✅ Phase 1 — Franka Panda implementation
+    └── franka.py          ✅ Phase 1 — Franka Panda (fr3_joint1–7)
 
 worlds/
-└── basic.sdf              ✅ Phase 2 — table, 5 blocks, overhead RGB-D camera
+└── basic.sdf              ✅ Phase 2 — table, 5 blocks, overhead RGB-D camera (blocks static; Phase 5 makes them dynamic)
 
 tests/
-├── test_lang_node.py      ✅ 8 tests — llm_client unit tests
-├── test_perception.py     ✅ 8 tests — perception unit tests (synthetic numpy)
-├── test_robot_abstraction.py  ✅ existing
-└── test_scene.py          ✅ existing
+├── test_lang_node.py          ✅ 8 tests — llm_client unit tests
+├── test_perception.py         ✅ 8 tests — perception unit tests (synthetic numpy)
+├── test_robot_abstraction.py  ✅ 9 tests — FrankaRobot contract
+├── test_scene.py              ✅ existing
+├── test_trajectory.py         ✅ Phase 4b — trajectory.py unit tests
+└── integration/
+    └── test_arm_movement.py   ✅ Phase 4b — arm physically reaches commanded positions in Gazebo
+
+docs/testing/
+├── arm-movement-tests-verification-guide.md  ✅ Phase 4b
+└── logs/arm-movement-tests-log.md            ✅ Phase 4b — full debug log of Gazebo control issues
 ```
 
-**Current test count:** 33 passing (Mac, no ROS2 needed)
+**Current test count:** 35+ passing (Mac, no ROS2 needed) + 2 integration tests (GhostMachine)
 
 ---
 
@@ -138,6 +148,9 @@ Always 5 entries. `visible: false` + null coords when block not detected.
 | `notify2` DBus error on colcon | Harmless | Desktop notification daemon not running — ignore |
 | 3D camera transform y-axis sign | Unverified | Needs confirmation during Phase 4 GhostMachine test. If y-positions are flipped, negate `y_world` in `perception.py:_project_to_world` |
 | Ollama model tag | Confirmed | `gemma4` (pull with `ollama pull gemma4`) |
+| `gz_ros2_control` ABI mismatch | Worked around | `libgz_hardware_plugins.so` has undefined symbol — compiled against ros2_control 4.x but installed version is older. Bypassed entirely: using `gz-sim-joint-position-controller-system` (Gazebo built-in) + `joint_relay_node` instead |
+| JointPositionController default topic | Resolved | Gazebo Harmonic defaults to `/model/<m>/joint/<j>/0/cmd_pos` (axis-indexed). ROS2 rejects numeric-only path tokens. Fix: set explicit `<topic>` in plugin config |
+| Joint state bridge | Resolved | `SceneBroadcaster` does not publish per-model joint state topics. Must inject `gz-sim-joint-state-publisher-system` into URDF to get `/world/<w>/model/<m>/joint_state` data |
 
 ---
 
