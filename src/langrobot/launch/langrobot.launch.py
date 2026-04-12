@@ -92,6 +92,16 @@ def generate_launch_description():
     pkg_share = get_package_share_directory('langrobot')
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
 
+    # Ensure Gazebo can locate ROS2 system plugins (e.g. gz_ros2_control-system).
+    # The library lives in /opt/ros/jazzy/lib but GZ_SIM_SYSTEM_PLUGIN_PATH is
+    # not always set there after 'source install/setup.bash'.
+    _ros_lib = '/opt/ros/jazzy/lib'
+    _gz_path = os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
+    if _ros_lib not in _gz_path:
+        os.environ['GZ_SIM_SYSTEM_PLUGIN_PATH'] = (
+            f'{_ros_lib}:{_gz_path}' if _gz_path else _ros_lib
+        )
+
     robot_description = _build_robot_description(pkg_share)
 
     robot_state_publisher = Node(
