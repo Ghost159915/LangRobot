@@ -81,7 +81,7 @@ def _project_to_world(u: int, v: int, depth: float, camera_info: dict):
     y_cam = (v - cy) * depth / fy
 
     x_world = CAMERA_X + x_cam
-    y_world = CAMERA_Y - y_cam   # image Y increases downward; world Y increases upward
+    y_world = CAMERA_Y + y_cam   # image Y increases downward; world Y increases upward
     z_world = CAMERA_Z - depth
 
     return x_world, y_world, z_world
