@@ -6,14 +6,22 @@ from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
+# Arm joint names — must match the spawned Gazebo model name.
+_ARM_JOINTS = [f'fr3_joint{i}' for i in range(1, 8)]
+_MODEL_NAME = 'panda'
 
-def _build_robot_description(pkg_share: str) -> str:
-    """Generate the robot URDF by running xacro on the franka description,
-    then append a ros2_control section and the gz_ros2_control Gazebo plugin.
 
-    The franka_description package uses FR3-named joints (fr3_joint1–7) and has
-    no ros2_control or Gazebo joint-control plugin of its own.  We inject both
-    here so gz_ros2_control can drive the arm from ROS 2.
+def _build_robot_description() -> str:
+    """Run xacro on the franka URDF and inject Gazebo JointPositionController
+    plugins for each arm joint.
+
+    We use Gazebo's built-in gz-sim-joint-position-controller-system (one per
+    joint) instead of gz_ros2_control, because gz_ros2_control has an ABI
+    mismatch with the installed hardware_interface on this system.
+
+    Each plugin listens on the default Gazebo topic:
+        /model/<model_name>/joint/<joint_name>/cmd_pos  (gz.msgs.Double)
+    These are bridged from ROS2 std_msgs/Float64 in the joint_command_bridge.
     """
     try:
         franka_pkg = get_package_share_directory('franka_description')
@@ -29,80 +37,39 @@ def _build_robot_description(pkg_share: str) -> str:
         capture_output=True, text=True,
     )
     if not result.stdout.strip():
-        raise RuntimeError(
-            f'xacro produced no output.\nstderr: {result.stderr}'
-        )
+        raise RuntimeError(f'xacro produced no output.\nstderr: {result.stderr}')
 
-    controllers_yaml = os.path.join(pkg_share, 'config', 'fr3_controllers.yaml')
+    # Build one JointPositionController plugin block per arm joint.
+    # PID gains are tuned for smooth simulation (not hardware).
+    joint_plugins = '\n'.join(
+        f"""    <plugin filename="gz-sim-joint-position-controller-system"
+            name="gz::sim::systems::JointPositionController">
+      <joint_name>{name}</joint_name>
+      <p_gain>200</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>10</d_gain>
+      <cmd_max>1000</cmd_max>
+      <cmd_min>-1000</cmd_min>
+    </plugin>"""
+        for name in _ARM_JOINTS
+    )
 
-    # Initial joint positions = Franka home pose (avoids gravity collapse at t=0).
-    ros2_control_block = f"""
-  <!-- gz_ros2_control hardware interface — injected at launch time -->
-  <ros2_control name="GazeboSystem" type="system">
-    <hardware>
-      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-    </hardware>
-    <joint name="fr3_joint1">
-      <command_interface name="position"/>
-      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="fr3_joint2">
-      <command_interface name="position"/>
-      <state_interface name="position"><param name="initial_value">-0.7854</param></state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="fr3_joint3">
-      <command_interface name="position"/>
-      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="fr3_joint4">
-      <command_interface name="position"/>
-      <state_interface name="position"><param name="initial_value">-2.3562</param></state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="fr3_joint5">
-      <command_interface name="position"/>
-      <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="fr3_joint6">
-      <command_interface name="position"/>
-      <state_interface name="position"><param name="initial_value">1.5708</param></state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-    <joint name="fr3_joint7">
-      <command_interface name="position"/>
-      <state_interface name="position"><param name="initial_value">0.7854</param></state_interface>
-      <state_interface name="velocity"/>
-    </joint>
-  </ros2_control>
+    gazebo_block = f"""
+  <!-- Per-joint position controllers (Gazebo Harmonic built-in).
+       Topics: /model/{_MODEL_NAME}/joint/<joint>/cmd_pos (gz transport)
+       Bridged from ROS2 Float64 via joint_command_bridge. -->
   <gazebo>
-    <plugin filename="gz_ros2_control-system"
-            name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-      <parameters>{controllers_yaml}</parameters>
-    </plugin>
+{joint_plugins}
   </gazebo>
 """
-    return result.stdout.replace('</robot>', ros2_control_block + '</robot>')
+    return result.stdout.replace('</robot>', gazebo_block + '</robot>')
 
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('langrobot')
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
 
-    # Ensure Gazebo can locate ROS2 system plugins (e.g. gz_ros2_control-system).
-    # The library lives in /opt/ros/jazzy/lib but GZ_SIM_SYSTEM_PLUGIN_PATH is
-    # not always set there after 'source install/setup.bash'.
-    _ros_lib = '/opt/ros/jazzy/lib'
-    _gz_path = os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')
-    if _ros_lib not in _gz_path:
-        os.environ['GZ_SIM_SYSTEM_PLUGIN_PATH'] = (
-            f'{_ros_lib}:{_gz_path}' if _gz_path else _ros_lib
-        )
-
-    robot_description = _build_robot_description(pkg_share)
+    robot_description = _build_robot_description()
 
     robot_state_publisher = Node(
         package='robot_state_publisher',
@@ -127,7 +94,7 @@ def generate_launch_description():
         package='ros_gz_sim',
         executable='create',
         arguments=[
-            '-name', 'panda',
+            '-name', _MODEL_NAME,
             '-topic', '/robot_description',
             '-x', '0.0',
             '-y', '0.0',
@@ -144,7 +111,7 @@ def generate_launch_description():
         output='screen',
     )
 
-    # Bridge camera topics from Gazebo → ROS2.
+    # Bridge camera topics: Gazebo → ROS2.
     camera_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -158,11 +125,50 @@ def generate_launch_description():
         output='screen',
     )
 
+    # Bridge Gazebo model joint states → ROS2 /joint_states.
+    # The model is spawned as 'panda'; Gazebo publishes joint state on this topic.
+    joint_state_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='joint_state_bridge',
+        arguments=[
+            f'/world/langrobot_basic/model/{_MODEL_NAME}/joint_state'
+            '@sensor_msgs/msg/JointState[gz.msgs.Model',
+        ],
+        remappings=[
+            (f'/world/langrobot_basic/model/{_MODEL_NAME}/joint_state', '/joint_states'),
+        ],
+        output='screen',
+    )
+
+    # Bridge per-joint position commands: ROS2 Float64 → Gazebo Double.
+    # ] direction means ROS2 → Gazebo (opposite of camera bridge above).
+    joint_command_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='joint_command_bridge',
+        arguments=[
+            f'/model/{_MODEL_NAME}/joint/{name}/cmd_pos'
+            '@std_msgs/msg/Float64]gz.msgs.Double'
+            for name in _ARM_JOINTS
+        ],
+        output='screen',
+    )
+
     controller_node = Node(
         package='langrobot',
         executable='controller_node',
         name='controller_node',
         parameters=[{'use_sim_time': use_sim_time}],
+        output='screen',
+    )
+
+    # Relay: splits /forward_position_controller/commands (Float64MultiArray)
+    # into 7 per-joint Float64 topics consumed by the joint_command_bridge.
+    joint_relay_node = Node(
+        package='langrobot',
+        executable='joint_relay_node',
+        name='joint_relay_node',
         output='screen',
     )
 
@@ -189,31 +195,13 @@ def generate_launch_description():
         output='screen',
     )
 
-    # Spawn ros2_control controllers.
-    # gz_ros2_control starts controller_manager when the robot is loaded (~3s).
-    # Add extra margin so controller_manager is ready before spawners run.
-    joint_state_broadcaster_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['joint_state_broadcaster', '--controller-manager', '/controller_manager'],
-        output='screen',
-    )
-
-    forward_position_controller_spawner = Node(
-        package='controller_manager',
-        executable='spawner',
-        arguments=['forward_position_controller', '--controller-manager', '/controller_manager'],
-        output='screen',
-    )
-
     # Delay spawn and bridges 3 s to give Gazebo time to initialise.
     delayed_spawn = TimerAction(period=3.0, actions=[spawn_robot])
     delayed_camera_bridge = TimerAction(period=3.0, actions=[camera_bridge])
-    # Controllers spawned at 10 s: robot spawns at 3 s, gz_ros2_control needs
-    # a few seconds to start controller_manager after the model loads.
-    delayed_controllers = TimerAction(
-        period=10.0,
-        actions=[joint_state_broadcaster_spawner, forward_position_controller_spawner],
+    # Joint bridges need the model to be spawned first (3 s).
+    delayed_joint_bridges = TimerAction(
+        period=5.0,
+        actions=[joint_state_bridge, joint_command_bridge],
     )
 
     return LaunchDescription([
@@ -223,8 +211,9 @@ def generate_launch_description():
         clock_bridge,
         delayed_spawn,
         delayed_camera_bridge,
-        delayed_controllers,
+        delayed_joint_bridges,
         controller_node,
+        joint_relay_node,
         rviz_node,
         lang_node,
         perception_node,

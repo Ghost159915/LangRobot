@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'controller_node = langrobot.controller_node:main',
+            'joint_relay_node = langrobot.joint_relay_node:main',
             'lang_node = langrobot.lang_node:main',
             'perception_node = langrobot.perception_node:main',
         ],
