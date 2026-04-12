@@ -17,12 +17,10 @@ _MODEL_NAME = 'panda'
 class JointRelayNode(Node):
     def __init__(self):
         super().__init__('joint_relay_node')
-        # JointPositionController in Gazebo Harmonic uses the axis-indexed topic
-        # /model/<model>/joint/<joint>/0/cmd_pos  (axis index 0).
         self._pubs = {
             name: self.create_publisher(
                 Float64,
-                f'/model/{_MODEL_NAME}/joint/{name}/0/cmd_pos',
+                f'/model/{_MODEL_NAME}/joint/{name}/cmd_pos',
                 10,
             )
             for name in _JOINT_NAMES

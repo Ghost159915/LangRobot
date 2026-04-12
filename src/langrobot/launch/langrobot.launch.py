@@ -41,10 +41,14 @@ def _build_robot_description() -> str:
 
     # Build one JointPositionController plugin block per arm joint.
     # PID gains are tuned for smooth simulation (not hardware).
+    # Explicit <topic> overrides Gazebo's default axis-indexed topic
+    # (/model/<model>/joint/<joint>/0/cmd_pos) which is invalid as a ROS2 topic
+    # name because numeric-only path tokens are forbidden.
     joint_plugins = '\n'.join(
         f"""    <plugin filename="gz-sim-joint-position-controller-system"
             name="gz::sim::systems::JointPositionController">
       <joint_name>{name}</joint_name>
+      <topic>/model/{_MODEL_NAME}/joint/{name}/cmd_pos</topic>
       <p_gain>500</p_gain>
       <i_gain>0</i_gain>
       <d_gain>20</d_gain>
@@ -150,14 +154,14 @@ def generate_launch_description():
 
     # Bridge per-joint position commands: ROS2 Float64 → Gazebo Double.
     # ] direction means ROS2 → Gazebo (opposite of camera bridge above).
-    # JointPositionController in Gazebo Harmonic subscribes on the axis-indexed
-    # topic: /model/<model>/joint/<joint>/0/cmd_pos  (axis index 0).
+    # The plugin <topic> is set explicitly in the URDF injection (no /0/ suffix)
+    # so this ROS2 topic name is valid.
     joint_command_bridge = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
         name='joint_command_bridge',
         arguments=[
-            f'/model/{_MODEL_NAME}/joint/{name}/0/cmd_pos'
+            f'/model/{_MODEL_NAME}/joint/{name}/cmd_pos'
             '@std_msgs/msg/Float64]gz.msgs.Double'
             for name in _ARM_JOINTS
         ],
