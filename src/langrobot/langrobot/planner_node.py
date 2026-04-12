@@ -13,7 +13,6 @@ On each /task_command:
 """
 from __future__ import annotations
 import json
-import math
 
 import rclpy
 from rclpy.node import Node
@@ -188,7 +187,10 @@ class PlannerNode(Node):
         if not plan:
             self.get_logger().error('Home planning failed')
             return False
-        self._moveit.execute(plan.trajectory, controllers=[])
+        result = self._moveit.execute(plan.trajectory, controllers=[])
+        if not result:
+            self.get_logger().error('Home execution failed')
+            return False
         self.get_logger().info('Step OK: home')
         return True
 
