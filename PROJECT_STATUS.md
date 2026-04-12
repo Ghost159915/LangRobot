@@ -2,7 +2,7 @@
 
 > **Living document.** Updated by Claude sessions on Mac and GhostMachine after each phase or significant milestone. When starting a new Claude session, read this file first for full context.
 
-**Last updated:** 2026-04-12  
+**Last updated:** 2026-04-13  
 **Updated by:** Claude (Mac session)
 
 ---
@@ -56,7 +56,7 @@ LangRobot is a language-driven robot manipulation system. A user types a plain E
 | 3 | `lang_node` — English → JSON | ✅ **DONE** | `/task_command` shows valid JSON for any English input |
 | 4 | `perception_node` — camera → block poses | ✅ **DONE** | `/object_poses` shows correct 3D positions |
 | 4b | Arm movement integration tests | ✅ **DONE** | `pytest tests/integration/` passes — arm physically moves to commanded positions in Gazebo |
-| 5 | `planner_node` — MoveIt2 planning | 🔄 **IN PROGRESS** | Arm picks and places a block |
+| 5 | `planner_node` — MoveIt2 planning | 🔄 **BUILT** (needs GhostMachine verification) | Arm picks and places a block |
 | 6 | `feedback_node` + full integration | ⏳ Not started | Full loop: English → arm moves → "Done." |
 
 ---
@@ -65,36 +65,49 @@ LangRobot is a language-driven robot manipulation system. A user types a plain E
 
 ```
 src/langrobot/langrobot/
-├── controller_node.py     ✅ Phase 1 — trajectory execution (fire-and-forget; Phase 5 upgrades to action server)
+├── controller_node.py     ✅ Phase 5 — upgraded: FollowJointTrajectory action server + legacy /joint_trajectory topic
+├── gripper_node.py        ✅ Phase 5 — GripperCommand action server for fr3_finger_joint1/2
 ├── joint_relay_node.py    ✅ Phase 4b — fans out Float64MultiArray → 7 per-joint Float64 topics
 ├── lang_node.py           ✅ Phase 3 — /task_input → Ollama → /task_command
 ├── llm_client.py          ✅ Phase 3 — pure Python Ollama HTTP client
 ├── perception.py          ✅ Phase 4 — HSV detection + 3D projection (pure Python)
 ├── perception_node.py     ✅ Phase 4 — camera topics → /object_poses
+├── planner_node.py        ✅ Phase 5 — /task_command + /object_poses → 9-step pick-and-place via MoveIt2
 ├── scene.py               ✅ Phase 2 — block/table geometry helpers
 ├── trajectory.py          ✅ Phase 4b — JointTrajectory → flat position list
 └── robots/
     ├── base_robot.py      ✅ Phase 1 — abstract robot interface
     └── franka.py          ✅ Phase 1 — Franka Panda (fr3_joint1–7)
 
+src/langrobot/config/moveit/
+├── panda.srdf             ✅ Phase 5 — planning groups: panda_arm (7-DOF), hand (fingers)
+├── kinematics.yaml        ✅ Phase 5 — KDL IK solver, 50ms timeout
+├── joint_limits.yaml      ✅ Phase 5 — FR3 velocity/acceleration limits
+├── moveit_controllers.yaml ✅ Phase 5 — FollowJointTrajectory + GripperCommand action mappings
+└── ompl_planning.yaml     ✅ Phase 5 — RRTConnect planner
+
 worlds/
-└── basic.sdf              ✅ Phase 2 — table, 5 blocks, overhead RGB-D camera (blocks static; Phase 5 makes them dynamic)
+└── basic.sdf              ✅ Phase 5 — blocks now dynamic (mass 50g, mu 1.5 friction); table/camera static
 
 tests/
+├── test_controller_action.py  ✅ Phase 5 — FollowJointTrajectory logic unit tests
 ├── test_lang_node.py          ✅ 8 tests — llm_client unit tests
 ├── test_perception.py         ✅ 8 tests — perception unit tests (synthetic numpy)
+├── test_planner.py            ✅ Phase 5 — planner pose helpers unit tests
 ├── test_robot_abstraction.py  ✅ 9 tests — FrankaRobot contract
 ├── test_scene.py              ✅ existing
 ├── test_trajectory.py         ✅ Phase 4b — trajectory.py unit tests
 └── integration/
-    └── test_arm_movement.py   ✅ Phase 4b — arm physically reaches commanded positions in Gazebo
+    ├── test_arm_movement.py       ✅ Phase 4b — arm reaches commanded positions in Gazebo
+    └── test_pick_and_place.py     ✅ Phase 5 — full pick-and-place in Gazebo (GhostMachine)
 
 docs/testing/
 ├── arm-movement-tests-verification-guide.md  ✅ Phase 4b
+├── phase5-verification-guide.md              ✅ Phase 5
 └── logs/arm-movement-tests-log.md            ✅ Phase 4b — full debug log of Gazebo control issues
 ```
 
-**Current test count:** 35+ passing (Mac, no ROS2 needed) + 2 integration tests (GhostMachine)
+**Current test count:** 51 passing (Mac, no ROS2 needed) + 3 integration tests (GhostMachine)
 
 ---
 
