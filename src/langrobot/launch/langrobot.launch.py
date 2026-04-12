@@ -95,6 +95,7 @@ def _build_robot_description() -> str:
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('langrobot')
+    moveit_config_dir = os.path.join(pkg_share, 'config', 'moveit')
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
 
     robot_description = _build_robot_description()
@@ -245,6 +246,30 @@ def generate_launch_description():
         output='screen',
     )
 
+    move_group = Node(
+        package='moveit_ros_move_group',
+        executable='move_group',
+        name='move_group',
+        parameters=[{
+            'robot_description': robot_description,
+            'robot_description_semantic': open(
+                os.path.join(moveit_config_dir, 'panda.srdf')
+            ).read(),
+            'robot_description_kinematics': os.path.join(moveit_config_dir, 'kinematics.yaml'),
+            'robot_description_planning': os.path.join(moveit_config_dir, 'joint_limits.yaml'),
+            'ompl': os.path.join(moveit_config_dir, 'ompl_planning.yaml'),
+            'moveit_simple_controller_manager': os.path.join(moveit_config_dir, 'moveit_controllers.yaml'),
+            'use_sim_time': use_sim_time,
+            'planning_scene_monitor_options': {
+                'publish_planning_scene': True,
+                'publish_geometry_updates': True,
+                'publish_state_updates': True,
+                'publish_transforms_updates': True,
+            },
+        }],
+        output='screen',
+    )
+
     # Delay spawn and bridges 3 s to give Gazebo time to initialise.
     delayed_spawn = TimerAction(period=3.0, actions=[spawn_robot])
     delayed_camera_bridge = TimerAction(period=3.0, actions=[camera_bridge])
@@ -268,4 +293,5 @@ def generate_launch_description():
         lang_node,
         perception_node,
         gripper_node,
+        move_group,
     ])

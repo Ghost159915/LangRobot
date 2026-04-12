@@ -15,6 +15,7 @@ setup(
         (os.path.join('share', package_name, 'worlds'), glob('../../worlds/*.sdf')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
         (os.path.join('share', package_name, 'config', 'rviz'), glob('config/rviz/*.rviz')),
+        (os.path.join('share', package_name, 'config', 'moveit'), glob('config/moveit/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
