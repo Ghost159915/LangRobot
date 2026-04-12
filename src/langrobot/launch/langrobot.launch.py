@@ -237,6 +237,14 @@ def generate_launch_description():
         output='screen',
     )
 
+    gripper_node = Node(
+        package='langrobot',
+        executable='gripper_node',
+        name='gripper_node',
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen',
+    )
+
     # Delay spawn and bridges 3 s to give Gazebo time to initialise.
     delayed_spawn = TimerAction(period=3.0, actions=[spawn_robot])
     delayed_camera_bridge = TimerAction(period=3.0, actions=[camera_bridge])
@@ -259,4 +267,5 @@ def generate_launch_description():
         rviz_node,
         lang_node,
         perception_node,
+        gripper_node,
     ])

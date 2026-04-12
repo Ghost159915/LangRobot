@@ -28,6 +28,7 @@ setup(
             'joint_relay_node = langrobot.joint_relay_node:main',
             'lang_node = langrobot.lang_node:main',
             'perception_node = langrobot.perception_node:main',
+            'gripper_node = langrobot.gripper_node:main',
         ],
     },
 )
