@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import math
 import time
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,19 +14,17 @@ try:
     HAS_RCLPY = True
 except ImportError:
     HAS_RCLPY = False
-    if TYPE_CHECKING:
-        from rclpy.node import Node
-    else:
-        Node = object
-
-from langrobot.robots.franka import FrankaRobot
+    Node = object
 
 pytestmark = pytest.mark.skipif(
     not HAS_RCLPY,
     reason="rclpy not available — run on GhostMachine with stack launched"
 )
 
-JOINT_NAMES = FrankaRobot().joint_names  # ['panda_joint1', ..., 'panda_joint7']
+JOINT_NAMES = [
+    'panda_joint1', 'panda_joint2', 'panda_joint3', 'panda_joint4',
+    'panda_joint5', 'panda_joint6', 'panda_joint7',
+]
 TOLERANCE = 0.05   # radians
 TIMEOUT = 8.0      # seconds
 
