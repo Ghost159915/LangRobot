@@ -8,6 +8,7 @@ import pytest
 try:
     import rclpy
     from rclpy.node import Node
+    from rclpy.qos import QoSProfile, ReliabilityPolicy
     from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
     from sensor_msgs.msg import JointState
     from builtin_interfaces.msg import Duration
@@ -37,7 +38,11 @@ class ArmTestNode(Node):
         super().__init__('arm_test_node')
         self._pub = self.create_publisher(JointTrajectory, '/joint_trajectory', 10)
         self._latest_positions: dict[str, float] | None = None
-        self.create_subscription(JointState, '/joint_states', self._on_joint_state, 10)
+        best_effort_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            depth=10,
+        )
+        self.create_subscription(JointState, '/joint_states', self._on_joint_state, best_effort_qos)
 
     def _on_joint_state(self, msg: JointState) -> None:
         self._latest_positions = dict(zip(msg.name, msg.position))

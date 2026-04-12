@@ -88,6 +88,24 @@ def generate_launch_description():
         output='screen',
     )
 
+    # Bridge Gazebo joint states → ROS2 /joint_states.
+    # Gazebo publishes model state (including joint positions) on:
+    #   /world/langrobot_basic/model/panda/joint_state  (gz.msgs.Model)
+    # The bridge converts this to sensor_msgs/JointState and we remap to /joint_states.
+    joint_state_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='joint_state_bridge',
+        arguments=[
+            '/world/langrobot_basic/model/panda/joint_state'
+            '@sensor_msgs/msg/JointState[gz.msgs.Model',
+        ],
+        remappings=[
+            ('/world/langrobot_basic/model/panda/joint_state', '/joint_states'),
+        ],
+        output='screen',
+    )
+
     controller_node = Node(
         package='langrobot',
         executable='controller_node',
@@ -109,6 +127,8 @@ def generate_launch_description():
     # Without the delay the bridge logs noisy "No publisher" errors until topics appear.
     delayed_spawn = TimerAction(period=3.0, actions=[spawn_robot])
     delayed_camera_bridge = TimerAction(period=3.0, actions=[camera_bridge])
+    # Joint state bridge delayed to 5s — the panda model must be spawned first (3s).
+    delayed_joint_state_bridge = TimerAction(period=5.0, actions=[joint_state_bridge])
 
     # lang_node: no use_sim_time — talks to Ollama via wall-clock HTTP, not sim time.
     lang_node = Node(
@@ -133,6 +153,7 @@ def generate_launch_description():
         clock_bridge,
         delayed_camera_bridge,
         delayed_spawn,
+        delayed_joint_state_bridge,
         controller_node,
         rviz_node,
         lang_node,
