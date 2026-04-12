@@ -4,6 +4,7 @@ from std_msgs.msg import Float64MultiArray
 from trajectory_msgs.msg import JointTrajectory
 
 from langrobot.robots.franka import FrankaRobot
+from langrobot.trajectory import trajectory_to_command
 
 
 class ControllerNode(Node):
@@ -32,14 +33,14 @@ class ControllerNode(Node):
         )
 
     def _trajectory_callback(self, msg: JointTrajectory) -> None:
-        if not msg.points:
+        try:
+            positions = trajectory_to_command(msg)
+        except ValueError:
             self.get_logger().warning('Received empty JointTrajectory — ignoring')
             return
 
-        # Forward the final point of the trajectory as the target position
-        final_point = msg.points[-1]
         cmd = Float64MultiArray()
-        cmd.data = list(final_point.positions)
+        cmd.data = positions
         self._joint_commands_pub.publish(cmd)
         self.get_logger().info(
             f'Published joint command ({len(cmd.data)} joints): '
