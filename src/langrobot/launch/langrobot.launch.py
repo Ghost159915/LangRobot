@@ -251,7 +251,19 @@ def generate_launch_description():
         package='langrobot',
         executable='planner_node',
         name='planner_node',
-        parameters=[{'use_sim_time': use_sim_time}],
+        parameters=[
+            {
+                'robot_description': robot_description,
+                'robot_description_semantic': open(
+                    os.path.join(moveit_config_dir, 'panda.srdf')
+                ).read(),
+                'robot_description_kinematics': yaml.safe_load(
+                    open(os.path.join(moveit_config_dir, 'kinematics.yaml'))
+                ),
+                'use_sim_time': use_sim_time,
+            },
+            os.path.join(moveit_config_dir, 'move_group_params.yaml'),
+        ],
         output='screen',
     )
 
