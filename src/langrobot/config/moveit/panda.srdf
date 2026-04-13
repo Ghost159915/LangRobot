@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<robot name="panda">
+<robot name="fr3">
   <!-- Planning group for the 7-DOF arm. -->
   <group name="panda_arm">
     <joint name="fr3_joint1" />

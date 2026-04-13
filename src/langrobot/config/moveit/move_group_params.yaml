@@ -1,4 +1,35 @@
-/**:
+/move_group:
+  ros__parameters:
+    planning_pipelines:
+      pipeline_names:
+        - ompl
+    ompl:
+      planning_plugin: ompl_interface/OMPLPlanner
+      request_adapters:
+        - default_planning_request_adapters/ResolveConstraintFrames
+        - default_planning_request_adapters/ValidateWorkspaceBounds
+        - default_planning_request_adapters/CheckStartStateBounds
+        - default_planning_request_adapters/CheckStartStateCollision
+      response_adapters:
+        - default_planning_response_adapters/AddTimeOptimalParameterization
+        - default_planning_response_adapters/ValidateSolution
+        - default_planning_response_adapters/DisplayMotionPath
+      planner_configs:
+        RRTConnectkConfigDefault:
+          type: geometric::RRTConnect
+          range: 0.0
+      panda_arm:
+        default_planner_config: RRTConnectkConfigDefault
+        planner_configs:
+          - RRTConnectkConfigDefault
+        projection_evaluator: joints(fr3_joint1,fr3_joint2)
+        longest_valid_segment_fraction: 0.01
+      hand:
+        default_planner_config: RRTConnectkConfigDefault
+        planner_configs:
+          - RRTConnectkConfigDefault
+
+/planner_node:
   ros__parameters:
     planning_pipelines:
       pipeline_names:
