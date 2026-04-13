@@ -270,6 +270,9 @@ def generate_launch_description():
             'robot_description_planning': yaml.safe_load(
                 open(os.path.join(moveit_config_dir, 'joint_limits.yaml'))
             ),
+            'planning_pipelines': {
+                'pipeline_names': ['ompl'],
+            },
             'ompl': yaml.safe_load(
                 open(os.path.join(moveit_config_dir, 'ompl_planning.yaml'))
             ),
