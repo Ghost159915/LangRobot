@@ -1,33 +1,32 @@
+from __future__ import annotations
+
 import math
 import time
-from typing import TYPE_CHECKING
 
 import pytest
 
 try:
     import rclpy
     from rclpy.node import Node
+    from rclpy.qos import QoSProfile, ReliabilityPolicy
     from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
     from sensor_msgs.msg import JointState
     from builtin_interfaces.msg import Duration
     HAS_RCLPY = True
 except ImportError:
     HAS_RCLPY = False
-    if TYPE_CHECKING:
-        from rclpy.node import Node
-    else:
-        Node = object
-
-from langrobot.robots.franka import FrankaRobot
+    Node = object
 
 pytestmark = pytest.mark.skipif(
     not HAS_RCLPY,
     reason="rclpy not available — run on GhostMachine with stack launched"
 )
 
-JOINT_NAMES = FrankaRobot().joint_names  # ['panda_joint1', ..., 'panda_joint7']
-TOLERANCE = 0.05   # radians
-TIMEOUT = 8.0      # seconds
+from langrobot.robots.franka import FrankaRobot
+JOINT_NAMES = FrankaRobot().joint_names  # fr3_joint1 … fr3_joint7
+TOLERANCE = 0.15   # radians — Gazebo sim PID doesn't settle perfectly
+TIMEOUT = 15.0     # seconds — arm needs time to physically move
+COMMAND_INTERVAL = 1.0  # re-publish command every N seconds (handles DDS discovery delay)
 
 HOME = [0.0, -math.pi / 4, 0.0, -3 * math.pi / 4, 0.0, math.pi / 2, math.pi / 4]
 CUSTOM = [0.5, -0.5, 0.0, -2.0, 0.0, 1.3, 0.785]
@@ -38,7 +37,11 @@ class ArmTestNode(Node):
         super().__init__('arm_test_node')
         self._pub = self.create_publisher(JointTrajectory, '/joint_trajectory', 10)
         self._latest_positions: dict[str, float] | None = None
-        self.create_subscription(JointState, '/joint_states', self._on_joint_state, 10)
+        best_effort_qos = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT,
+            depth=10,
+        )
+        self.create_subscription(JointState, '/joint_states', self._on_joint_state, best_effort_qos)
 
     def _on_joint_state(self, msg: JointState) -> None:
         self._latest_positions = dict(zip(msg.name, msg.position))
@@ -54,7 +57,12 @@ class ArmTestNode(Node):
 
     def wait_for_positions(self, target: list[float]) -> tuple[bool, dict]:
         deadline = time.time() + TIMEOUT
+        last_command_at = 0.0
         while time.time() < deadline:
+            # Re-publish periodically in case first publish was lost during DDS discovery.
+            if time.time() - last_command_at >= COMMAND_INTERVAL:
+                self.command(target)
+                last_command_at = time.time()
             rclpy.spin_once(self, timeout_sec=0.1)
             if self._latest_positions is not None:
                 diffs = {
@@ -85,7 +93,6 @@ def arm_node():
 
 def test_arm_moves_to_home_position(arm_node):
     """Arm must reach Franka home position within TIMEOUT seconds."""
-    arm_node.command(HOME)
     reached, diffs = arm_node.wait_for_positions(HOME)
     diff_str = ", ".join(f"{k}: {v:.3f}rad" for k, v in diffs.items())
     assert reached, (
@@ -96,7 +103,6 @@ def test_arm_moves_to_home_position(arm_node):
 
 def test_arm_moves_to_custom_position(arm_node):
     """Arm must reach a distinct non-home pose within TIMEOUT seconds."""
-    arm_node.command(CUSTOM)
     reached, diffs = arm_node.wait_for_positions(CUSTOM)
     diff_str = ", ".join(f"{k}: {v:.3f}rad" for k, v in diffs.items())
     assert reached, (

@@ -15,6 +15,7 @@ setup(
         (os.path.join('share', package_name, 'worlds'), glob('../../worlds/*.sdf')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
         (os.path.join('share', package_name, 'config', 'rviz'), glob('config/rviz/*.rviz')),
+        (os.path.join('share', package_name, 'config', 'moveit'), glob('config/moveit/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -25,8 +26,11 @@ setup(
     entry_points={
         'console_scripts': [
             'controller_node = langrobot.controller_node:main',
+            'joint_relay_node = langrobot.joint_relay_node:main',
             'lang_node = langrobot.lang_node:main',
             'perception_node = langrobot.perception_node:main',
+            'gripper_node = langrobot.gripper_node:main',
+            'planner_node = langrobot.planner_node:main',
         ],
     },
 )

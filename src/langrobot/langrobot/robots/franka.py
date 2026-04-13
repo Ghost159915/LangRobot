@@ -9,13 +9,13 @@ class FrankaRobot(BaseRobot):
     def config(self) -> RobotConfig:
         return RobotConfig(
             joint_names=[
-                'panda_joint1',
-                'panda_joint2',
-                'panda_joint3',
-                'panda_joint4',
-                'panda_joint5',
-                'panda_joint6',
-                'panda_joint7',
+                'fr3_joint1',
+                'fr3_joint2',
+                'fr3_joint3',
+                'fr3_joint4',
+                'fr3_joint5',
+                'fr3_joint6',
+                'fr3_joint7',
             ],
             end_effector_link='panda_hand',
             planning_group='panda_arm',
