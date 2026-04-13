@@ -259,34 +259,31 @@ def generate_launch_description():
         package='moveit_ros_move_group',
         executable='move_group',
         name='move_group',
-        parameters=[{
-            'robot_description': robot_description,
-            'robot_description_semantic': open(
-                os.path.join(moveit_config_dir, 'panda.srdf')
-            ).read(),
-            'robot_description_kinematics': yaml.safe_load(
-                open(os.path.join(moveit_config_dir, 'kinematics.yaml'))
-            ),
-            'robot_description_planning': yaml.safe_load(
-                open(os.path.join(moveit_config_dir, 'joint_limits.yaml'))
-            ),
-            'planning_pipelines': {
-                'pipeline_names': ['ompl'],
+        parameters=[
+            {
+                'robot_description': robot_description,
+                'robot_description_semantic': open(
+                    os.path.join(moveit_config_dir, 'panda.srdf')
+                ).read(),
+                'robot_description_kinematics': yaml.safe_load(
+                    open(os.path.join(moveit_config_dir, 'kinematics.yaml'))
+                ),
+                'robot_description_planning': yaml.safe_load(
+                    open(os.path.join(moveit_config_dir, 'joint_limits.yaml'))
+                ),
+                'moveit_simple_controller_manager': yaml.safe_load(
+                    open(os.path.join(moveit_config_dir, 'moveit_controllers.yaml'))
+                ),
+                'use_sim_time': use_sim_time,
+                'planning_scene_monitor_options': {
+                    'publish_planning_scene': True,
+                    'publish_geometry_updates': True,
+                    'publish_state_updates': True,
+                    'publish_transforms_updates': True,
+                },
             },
-            'ompl': yaml.safe_load(
-                open(os.path.join(moveit_config_dir, 'ompl_planning.yaml'))
-            ),
-            'moveit_simple_controller_manager': yaml.safe_load(
-                open(os.path.join(moveit_config_dir, 'moveit_controllers.yaml'))
-            ),
-            'use_sim_time': use_sim_time,
-            'planning_scene_monitor_options': {
-                'publish_planning_scene': True,
-                'publish_geometry_updates': True,
-                'publish_state_updates': True,
-                'publish_transforms_updates': True,
-            },
-        }],
+            os.path.join(moveit_config_dir, 'move_group_params.yaml'),
+        ],
         output='screen',
     )
 
